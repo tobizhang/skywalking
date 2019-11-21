@@ -20,6 +20,7 @@ package org.apache.skywalking.oap.server.storage.plugin.elasticsearch.base;
 
 import com.google.gson.JsonObject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.skywalking.oap.server.core.Const;
 import org.apache.skywalking.oap.server.core.storage.StorageException;
 import org.apache.skywalking.oap.server.core.storage.model.Model;
 import org.apache.skywalking.oap.server.core.storage.model.ModelColumn;
@@ -178,12 +179,12 @@ public class StorageEsInstaller extends ModelInstaller {
         if (StringUtils.isBlank(indexSpecialCfgs)) {
             return esIndexCfgs;
         }
-        String[] kvs = indexSpecialCfgs.split(",");
+        String[] kvs = indexSpecialCfgs.split(Const.KEY_VALUE_SPLIT);
         for (String kv : kvs) {
             if (StringUtils.isBlank(kv)) {
                 continue;
             }
-            String[] skvs = kv.split("=");
+            String[] skvs = kv.split(Const.KEY_VALUE_MAPPING_SPLIT);
             if (skvs.length != 2) {
                 continue;
             }

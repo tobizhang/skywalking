@@ -38,4 +38,5 @@ public class Const {
     public static final String EMPTY_STRING = "";
     public static final String EMPTY_JSON_OBJECT_STRING = "{}";
     public static final String DOMAIN_OPERATION_NAME = "{domain}";
+    public static final String KEY_VALUE_MAPPING_SPLIT = "=";
 }
