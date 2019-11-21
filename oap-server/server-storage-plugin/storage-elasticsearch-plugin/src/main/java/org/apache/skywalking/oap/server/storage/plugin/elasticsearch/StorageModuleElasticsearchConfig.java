@@ -33,6 +33,7 @@ public class StorageModuleElasticsearchConfig extends ModuleConfig {
     @Setter private int indexShardsNumber = 2;
     @Setter private int indexReplicasNumber = 0;
     @Setter private int indexRefreshInterval = 2;
+    @Setter private String indexSpecialCfgs;
     @Setter private int bulkActions = 2000;
     @Setter private int flushInterval = 10;
     @Setter private int concurrentRequests = 2;

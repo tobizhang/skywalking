@@ -82,6 +82,8 @@ storage:
     password: ${SW_ES_PASSWORD:""}
     indexShardsNumber: ${SW_STORAGE_ES_INDEX_SHARDS_NUMBER:2}
     indexReplicasNumber: ${SW_STORAGE_ES_INDEX_REPLICAS_NUMBER:0}
+    #config index params format: segment_indexShardsNumber=5,segment_indexReplicasNumber=0,segment_flushInterval=10
+    indexSpecialCfgs: ${SW_STORAGE_ES_INDEX_SPECIAL_CFGS:""}
     # Those data TTL settings will override the same settings in core module.
     recordDataTTL: ${SW_STORAGE_ES_RECORD_DATA_TTL:7} # Unit is day
     otherMetricsDataTTL: ${SW_STORAGE_ES_OTHER_METRIC_DATA_TTL:45} # Unit is day

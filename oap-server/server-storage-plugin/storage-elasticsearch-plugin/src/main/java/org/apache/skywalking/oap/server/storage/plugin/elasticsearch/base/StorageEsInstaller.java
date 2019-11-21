@@ -19,14 +19,20 @@
 package org.apache.skywalking.oap.server.storage.plugin.elasticsearch.base;
 
 import com.google.gson.JsonObject;
-import java.io.IOException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.skywalking.oap.server.core.storage.StorageException;
-import org.apache.skywalking.oap.server.core.storage.model.*;
+import org.apache.skywalking.oap.server.core.storage.model.Model;
+import org.apache.skywalking.oap.server.core.storage.model.ModelColumn;
+import org.apache.skywalking.oap.server.core.storage.model.ModelInstaller;
 import org.apache.skywalking.oap.server.library.client.Client;
 import org.apache.skywalking.oap.server.library.client.elasticsearch.ElasticSearchClient;
 import org.apache.skywalking.oap.server.library.module.ModuleManager;
 import org.elasticsearch.common.unit.TimeValue;
-import org.slf4j.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.util.HashMap;
 
 /**
  * @author peng-yongsheng
@@ -38,18 +44,21 @@ public class StorageEsInstaller extends ModelInstaller {
     private final int indexShardsNumber;
     private final int indexReplicasNumber;
     private final int indexRefreshInterval;
+    private HashMap<String, Integer> indexSpecialCfgs;
     private final ColumnTypeEsMapping columnTypeEsMapping;
 
-    public StorageEsInstaller(ModuleManager moduleManager, int indexShardsNumber, int indexReplicasNumber, int indexRefreshInterval) {
+    public StorageEsInstaller(ModuleManager moduleManager, int indexShardsNumber, int indexReplicasNumber, int indexRefreshInterval, String indexSpecialCfgs) {
         super(moduleManager);
         this.indexShardsNumber = indexShardsNumber;
         this.indexReplicasNumber = indexReplicasNumber;
         this.indexRefreshInterval = indexRefreshInterval;
+        this.indexSpecialCfgs = parseEsIndexCfgs(indexSpecialCfgs);
         this.columnTypeEsMapping = new ColumnTypeEsMapping();
     }
 
-    @Override protected boolean isExists(Client client, Model model) throws StorageException {
-        ElasticSearchClient esClient = (ElasticSearchClient)client;
+    @Override
+    protected boolean isExists(Client client, Model model) throws StorageException {
+        ElasticSearchClient esClient = (ElasticSearchClient) client;
         try {
             if (model.isCapableOfTimeSeries()) {
                 return esClient.isExistsTemplate(model.getName()) && esClient.isExistsIndex(model.getName());
@@ -61,10 +70,11 @@ public class StorageEsInstaller extends ModelInstaller {
         }
     }
 
-    @Override protected void createTable(Client client, Model model) throws StorageException {
-        ElasticSearchClient esClient = (ElasticSearchClient)client;
+    @Override
+    protected void createTable(Client client, Model model) throws StorageException {
+        ElasticSearchClient esClient = (ElasticSearchClient) client;
 
-        JsonObject settings = createSetting(model.isRecord());
+        JsonObject settings = createSetting(model);
         JsonObject mapping = createMapping(model);
         logger.info("index {}'s columnTypeEsMapping builder str: {}", esClient.formatIndexName(model.getName()), mapping.toString());
 
@@ -97,11 +107,29 @@ public class StorageEsInstaller extends ModelInstaller {
         }
     }
 
-    private JsonObject createSetting(boolean record) {
+    private JsonObject createSetting(Model model) {
         JsonObject setting = new JsonObject();
-        setting.addProperty("index.number_of_shards", indexShardsNumber);
-        setting.addProperty("index.number_of_replicas", indexReplicasNumber);
-        setting.addProperty("index.refresh_interval", record ? TimeValue.timeValueSeconds(10).toString() : TimeValue.timeValueSeconds(indexRefreshInterval).toString());
+        Integer indexShardsNumberTmp = indexSpecialCfgs.get(model.getName() + "_indexShardsNumber");
+        if (indexShardsNumberTmp != null) {
+            setting.addProperty("index.number_of_shards", indexShardsNumberTmp.intValue());
+        } else {
+            setting.addProperty("index.number_of_shards", indexShardsNumber);
+        }
+
+        Integer indexReplicasNumberTmp = indexSpecialCfgs.get(model.getName() + "_indexReplicasNumber");
+        if (indexShardsNumberTmp != null) {
+            setting.addProperty("index.number_of_replicas", indexReplicasNumberTmp.intValue());
+        } else {
+            setting.addProperty("index.number_of_replicas", indexReplicasNumber);
+        }
+
+        Integer flushIntervalTmp = indexSpecialCfgs.get(model.getName() + "_flushInterval");
+        if (flushIntervalTmp != null) {
+            setting.addProperty("index.refresh_interval", model.isRecord() ? TimeValue.timeValueSeconds(10).toString() : TimeValue.timeValueSeconds(flushIntervalTmp.intValue()).toString());
+        } else {
+            setting.addProperty("index.refresh_interval", model.isRecord() ? TimeValue.timeValueSeconds(10).toString() : TimeValue.timeValueSeconds(indexRefreshInterval).toString());
+        }
+
         setting.addProperty("analysis.analyzer.oap_analyzer.type", "stop");
         return setting;
     }
@@ -143,5 +171,24 @@ public class StorageEsInstaller extends ModelInstaller {
         logger.debug("elasticsearch index template setting: {}", mapping.toString());
 
         return mapping;
+    }
+
+    private HashMap<String, Integer> parseEsIndexCfgs(String indexSpecialCfgs) {
+        HashMap<String, Integer> esIndexCfgs = new HashMap<>();
+        if (StringUtils.isBlank(indexSpecialCfgs)) {
+            return esIndexCfgs;
+        }
+        String[] kvs = indexSpecialCfgs.split(",");
+        for (String kv : kvs) {
+            if (StringUtils.isBlank(kv)) {
+                continue;
+            }
+            String[] skvs = kv.split("=");
+            if (skvs.length != 2) {
+                continue;
+            }
+            esIndexCfgs.put(skvs[0], Integer.valueOf(skvs[1]));
+        }
+        return esIndexCfgs;
     }
 }
